@@ -23,7 +23,10 @@ def extract_content_from_file(file):
 
     if file_type == "application/pdf":
         with pdfplumber.open(file) as pdf:
-            text = ''.join([page.extract_text() for page in pdf.pages])
+            text = ''
+            for page in pdf.pages:
+                text += page.extract_text() + '
+'
         return text
 
     elif file_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
