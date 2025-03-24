@@ -6,7 +6,8 @@ import os
 from datetime import datetime
 
 # Imposta la tua API Key di OpenAI
-openai.api_key = "INSERISCI_LA_TUA_API_KEY"
+import os
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 # Caricamento del prompt dal file esterno
 def load_prompt():
@@ -49,8 +50,12 @@ email_content = st.text_area("Incolla qui il contenuto dell'email", height=300)
 col1, col2 = st.columns(2)
 with col1:
     analysis_type = st.selectbox("Tipo di Analisi", ["Standard (veloce)", "Completa (dettagliata)"])
+    temperature = st.slider("Temperatura (Creatività)", 0.0, 1.0, 0.5)
+    max_tokens = st.slider("Numero massimo di token", 500, 3000, 2000)
+    
 with col2:
     priority = st.selectbox("Priorità", ["Alta", "Media", "Bassa"])
+    model_name = st.selectbox("Modello OpenAI", ["gpt-4", "gpt-3.5-turbo"])
 
 result = None
 
@@ -62,10 +67,13 @@ if st.button("🚀 AI Magic - Avvia Analisi"):
         
         try:
             response = openai.ChatCompletion.create(
-                model="gpt-4",
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=2000,
-                temperature=0.5
+                model=model_name,
+                messages=[
+                    {"role": "system", "content": "Sei un assistente utile e professionale."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=temperature,
+                max_tokens=max_tokens
             )
             result = response['choices'][0]['message']['content']
             
