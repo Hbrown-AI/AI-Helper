@@ -25,8 +25,7 @@ def extract_content_from_file(file):
         with pdfplumber.open(file) as pdf:
             text = ''
             for page in pdf.pages:
-                text += page.extract_text() + '
-'
+                text += page.extract_text() + '\n' # Assicurati che la stringa sia chiusa correttamente
         return text
 
     elif file_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
