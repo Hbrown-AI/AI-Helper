@@ -28,7 +28,7 @@ def load_prompt():
 
 # Funzione per generare il prompt dinamico
 def generate_prompt(email_content, prompt_template):
-    return f"{prompt_template}
+    return prompt_template
 Email da analizzare:
 {email_content}"
 
