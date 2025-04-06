@@ -11,28 +11,25 @@ from io import BytesIO
 from datetime import datetime
 import csv
 
-# Configurazione dei parametri API nascosti
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-DEFAULT_MODEL = "gpt-4"
+DEFAULT_MODEL = "gpt-4o"
 DEFAULT_TEMPERATURE = 0.5
 DEFAULT_MAX_TOKENS = 2000
 
-# Funzione per estrarre contenuto dagli allegati
 def extract_content_from_file(file):
     file_type = file.type
-
     if file_type == "application/pdf":
         with pdfplumber.open(file) as pdf:
             text = ''
             for page in pdf.pages:
-                text += page.extract_text() + '\n'
+                page_text = page.extract_text()
+                if page_text:
+                    text += page_text + '\n'
         return text
-
     elif file_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
         doc = docx.Document(file)
         text = '\n'.join([paragraph.text for paragraph in doc.paragraphs])
         return text
-
     elif file_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
         wb = openpyxl.load_workbook(file)
         sheet = wb.active
@@ -40,66 +37,52 @@ def extract_content_from_file(file):
         for row in sheet.iter_rows(values_only=True):
             data.append(' '.join([str(cell) for cell in row if cell is not None]))
         return '\n'.join(data)
-
     elif file_type in ["image/jpeg", "image/png"]:
         image = Image.open(file)
         return f"Immagine caricata: {file.name} - Dimensioni: {image.size}"
-
     elif file_type == "message/rfc822":
         msg = email.message_from_bytes(file.read())
         text_content = ""
         if msg.is_multipart():
             for part in msg.walk():
                 if part.get_content_type() == "text/plain":
-                    text_content += part.get_payload(decode=True).decode("utf-8", errors="ignore")
+                    payload = part.get_payload(decode=True)
+                    if payload:
+                        text_content += payload.decode("utf-8", errors="ignore")
         else:
-            text_content = msg.get_payload(decode=True).decode("utf-8", errors="ignore")
+            payload = msg.get_payload(decode=True)
+            if payload:
+                text_content = payload.decode("utf-8", errors="ignore")
         return text_content
-
     else:
         return "Formato file non supportato."
 
-# Funzione per generare il prompt
 def generate_prompt(email_content, prompt_template):
-    if not prompt_template.strip():
-        prompt_template = "Analizza la seguente email e rispondi ai seguenti punti:"
-    if not email_content.strip():
-        raise ValueError("Il contenuto dell'email è vuoto. Fornisci un'email valida per l'analisi.")
-
-    prompt = (
-        prompt_template + "\n" +
-        "Email da analizzare:\n" + email_content + "\n"
-    )
+    prompt = prompt_template + "\nEmail da analizzare:\n" + email_content + "\n"
     return prompt
 
-# Configurazione della pagina Streamlit
+def save_to_log(email_content, analysis_type, priority, prompt_used, result, rating):
+    log_file = "user_logs.csv"
+    file_exists = os.path.isfile(log_file)
+    with open(log_file, mode='a', newline='', encoding='utf-8') as file:
+        writer = csv.writer(file)
+        if not file_exists:
+            writer.writerow(["Data e Ora", "Email Analizzata", "Tipo di Analisi", "Priorità", "Prompt Inviato", "Risultato Generato", "Rating Cliente"])
+        writer.writerow([datetime.now(), email_content, analysis_type, priority, prompt_used, result, rating])
+
 st.set_page_config(page_title="AI Helper - Ilmap", layout="centered")
 st.title("🔍 AI Helper - Analisi Automatica delle Email")
-
-# Inserimento manuale testo
-st.markdown("### 📥 Incolla qui il testo da analizzare:")
 email_content = st.text_area("Incolla qui il contenuto dell'email o testo da analizzare", height=200)
+uploaded_files = st.file_uploader("Carica file da analizzare (.eml, .pdf, .docx, .xlsx, .jpg, .png)", accept_multiple_files=True)
 
-# Upload file multipli
-st.markdown("### 📥 Carica file da analizzare (.eml, .pdf, .docx, .xlsx, .jpg, .png):")
-uploaded_files = st.file_uploader("Scegli uno o più file", accept_multiple_files=True)
-
-# Estrai contenuti dai file caricati
 if uploaded_files:
     for uploaded_file in uploaded_files:
-        file_content = extract_content_from_file(uploaded_file)
-        email_content += "\n\n" + file_content
+        email_content += "\n\n" + extract_content_from_file(uploaded_file)
 
-# Prompt template
 prompt_template = "Analizza la seguente email e rispondi ai seguenti punti:"
-
-# Avvio dell'analisi
 if st.button("🚀 AI Magic - Avvia Analisi"):
-    if not email_content.strip():
-        st.warning("⚠️ Inserisci del testo o carica un file prima di procedere.")
-    else:
+    if email_content.strip():
         prompt = generate_prompt(email_content, prompt_template)
-
         try:
             response = client.chat.completions.create(
                 model=DEFAULT_MODEL,
@@ -111,15 +94,12 @@ if st.button("🚀 AI Magic - Avvia Analisi"):
                 max_tokens=DEFAULT_MAX_TOKENS
             )
             result = response.choices[0].message.content
-            
-            st.markdown("### 📋 Risultato dell'Analisi:")
             st.text_area("Risultato Generato dall'AI", result, height=400)
-            st.download_button(label="💾 Scarica Report", data=result, file_name="Report_AI_Helper.txt")
-
             rating = st.slider("Quanto sei soddisfatto del risultato?", 1, 5)
             if st.button("✅ Salva il Feedback"):
-                save_to_log(email_content, "Analisi Completa", "Alta", result, rating)
+                save_to_log(email_content, "Analisi Completa", "Alta", prompt, result, rating)
                 st.success("Feedback salvato con successo!")
-
         except Exception as e:
             st.error(f"Errore durante l'elaborazione: {e}")
+    else:
+        st.warning("⚠️ Inserisci del testo o carica un file prima di procedere.")
