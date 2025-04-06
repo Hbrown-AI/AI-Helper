@@ -13,8 +13,8 @@ import csv
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 DEFAULT_MODEL = "gpt-4o"
-DEFAULT_TEMPERATURE = 0.5
-DEFAULT_MAX_TOKENS = 2000
+DEFAULT_TEMPERATURE = 1
+DEFAULT_MAX_TOKENS = 5000
 
 def extract_content_from_file(file):
     file_type = file.type
