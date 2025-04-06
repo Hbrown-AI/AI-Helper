@@ -14,7 +14,7 @@ import csv
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 DEFAULT_MODEL = "gpt-4o"
 DEFAULT_TEMPERATURE = 0.5
-DEFAULT_MAX_TOKENS = 2000
+DEFAULT_MAX_TOKENS = 5000
 
 DEV_MODE = False  # Imposta a True se vuoi visualizzare il prompt generato durante i test
 
