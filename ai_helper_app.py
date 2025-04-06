@@ -14,9 +14,9 @@ import csv
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 DEFAULT_MODEL = "gpt-4o"
 DEFAULT_TEMPERATURE = 0.5
-DEFAULT_MAX_TOKENS = 5000
+DEFAULT_MAX_TOKENS = 2000
 
-DEV_MODE = False  # Imposta a True se vuoi visualizzare il prompt generato durante i test
+DEV_MODE = False  # Attiva True solo in sviluppo per visualizzare il prompt
 
 def extract_content_from_file(file):
     file_type = file.type
@@ -109,6 +109,15 @@ if st.button("🚀 AI Magic - Avvia Analisi"):
             )
             result = response.choices[0].message.content
             st.text_area("Risultato Generato dall'AI", result, height=400)
+
+            # 💾 Pulsante per scaricare il risultato
+            st.download_button(
+                label="📄 Scarica il risultato",
+                data=result,
+                file_name="AI_Helper_Output.txt",
+                mime="text/plain"
+            )
+
             rating = st.slider("Quanto sei soddisfatto del risultato?", 1, 5)
             if st.button("✅ Salva il Feedback"):
                 save_to_log(email_content, "Analisi Completa", "Alta", prompt, result, rating)
