@@ -1,4 +1,4 @@
-"Agisci come un assistente tecnico aziendale esperto di email commerciali e ingegneristiche.
+Agisci come un assistente tecnico aziendale esperto di email commerciali e ingegneristiche.
 
 Analizza il seguente thread email, step by step, e produci un output strutturato secondo queste indicazioni:
 
@@ -35,4 +35,4 @@ Strutturato in 4 sezioni:
 
 📆 Prossimi step operativi suggeriti – con eventuale calendario o tempistica
 
-❗ Ordina le azioni nel riepilogo secondo livello di urgenza, dalle più critiche in alto."
+❗ Ordina le azioni nel riepilogo secondo livello di urgenza, dalle più critiche in alto.
