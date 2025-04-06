@@ -13,8 +13,10 @@ import csv
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 DEFAULT_MODEL = "gpt-4o"
-DEFAULT_TEMPERATURE = 1
-DEFAULT_MAX_TOKENS = 5000
+DEFAULT_TEMPERATURE = 0.5
+DEFAULT_MAX_TOKENS = 2000
+
+DEV_MODE = False  # Imposta a True se vuoi visualizzare il prompt generato durante i test
 
 def extract_content_from_file(file):
     file_type = file.type
@@ -58,8 +60,7 @@ def extract_content_from_file(file):
         return "Formato file non supportato."
 
 def generate_prompt(email_content, prompt_template):
-    prompt = prompt_template + "\nEmail da analizzare:\n" + email_content + "\n"
-    return prompt
+    return prompt_template + "\nEmail da analizzare:\n" + email_content + "\n"
 
 def save_to_log(email_content, analysis_type, priority, prompt_used, result, rating):
     log_file = "user_logs.csv"
@@ -70,6 +71,13 @@ def save_to_log(email_content, analysis_type, priority, prompt_used, result, rat
             writer.writerow(["Data e Ora", "Email Analizzata", "Tipo di Analisi", "Priorità", "Prompt Inviato", "Risultato Generato", "Rating Cliente"])
         writer.writerow([datetime.now(), email_content, analysis_type, priority, prompt_used, result, rating])
 
+def load_prompt_template():
+    try:
+        with open("prompt_template.txt", "r", encoding="utf-8") as file:
+            return file.read()
+    except FileNotFoundError:
+        return "Analizza la seguente email e rispondi ai seguenti punti:"
+
 st.set_page_config(page_title="AI Helper - Ilmap", layout="centered")
 st.title("🔍 AI Helper - Analisi Automatica delle Email")
 email_content = st.text_area("Incolla qui il contenuto dell'email o testo da analizzare", height=200)
@@ -79,10 +87,16 @@ if uploaded_files:
     for uploaded_file in uploaded_files:
         email_content += "\n\n" + extract_content_from_file(uploaded_file)
 
-prompt_template = "Analizza la seguente email e rispondi ai seguenti punti:"
+prompt_template = load_prompt_template()
+
 if st.button("🚀 AI Magic - Avvia Analisi"):
     if email_content.strip():
         prompt = generate_prompt(email_content, prompt_template)
+
+        if DEV_MODE:
+            st.markdown("### 🔍 Prompt inviato all'AI")
+            st.text_area("Prompt usato per la richiesta", prompt, height=300)
+
         try:
             response = client.chat.completions.create(
                 model=DEFAULT_MODEL,
