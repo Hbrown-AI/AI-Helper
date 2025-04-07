@@ -9,14 +9,20 @@ from PIL import Image
 import email
 from io import BytesIO
 from datetime import datetime
-import csv
+import gspread
+from google.oauth2.service_account import Credentials
 
+# Configura OpenAI
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 DEFAULT_MODEL = "gpt-4o"
 DEFAULT_TEMPERATURE = 0.5
 DEFAULT_MAX_TOKENS = 2000
 
-DEV_MODE = False  # Attiva True solo in sviluppo per visualizzare il prompt
+# Google Sheet setup
+scope = ["https://www.googleapis.com/auth/spreadsheets"]
+credentials = Credentials.from_service_account_info(eval(os.getenv("GOOGLE_CREDENTIALS")), scopes=scope)
+gc = gspread.authorize(credentials)
+sheet = gc.open_by_key("1N4XRmuACsYxof40ZnG_RGKDjdv8SYY3HAXLO0xk3BhE").sheet1
 
 def extract_content_from_file(file):
     file_type = file.type
@@ -30,15 +36,11 @@ def extract_content_from_file(file):
         return text
     elif file_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
         doc = docx.Document(file)
-        text = '\n'.join([paragraph.text for paragraph in doc.paragraphs])
-        return text
+        return '\n'.join([p.text for p in doc.paragraphs])
     elif file_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
         wb = openpyxl.load_workbook(file)
-        sheet = wb.active
-        data = []
-        for row in sheet.iter_rows(values_only=True):
-            data.append(' '.join([str(cell) for cell in row if cell is not None]))
-        return '\n'.join(data)
+        sheet_data = wb.active
+        return '\n'.join([' '.join([str(cell) for cell in row if cell]) for row in sheet_data.iter_rows()])
     elif file_type in ["image/jpeg", "image/png"]:
         image = Image.open(file)
         return f"Immagine caricata: {file.name} - Dimensioni: {image.size}"
@@ -59,18 +61,6 @@ def extract_content_from_file(file):
     else:
         return "Formato file non supportato."
 
-def generate_prompt(email_content, prompt_template):
-    return prompt_template + "\nEmail da analizzare:\n" + email_content + "\n"
-
-def save_to_log(email_content, analysis_type, priority, prompt_used, result, rating):
-    log_file = "user_logs.csv"
-    file_exists = os.path.isfile(log_file)
-    with open(log_file, mode='a', newline='', encoding='utf-8') as file:
-        writer = csv.writer(file)
-        if not file_exists:
-            writer.writerow(["Data e Ora", "Email Analizzata", "Tipo di Analisi", "Priorità", "Prompt Inviato", "Risultato Generato", "Rating Cliente"])
-        writer.writerow([datetime.now(), email_content, analysis_type, priority, prompt_used, result, rating])
-
 def load_prompt_template():
     try:
         with open("prompt_template.txt", "r", encoding="utf-8") as file:
@@ -78,10 +68,32 @@ def load_prompt_template():
     except FileNotFoundError:
         return "Analizza la seguente email e rispondi ai seguenti punti:"
 
-st.set_page_config(page_title="AI Helper - Ilmap", layout="centered")
-st.title("🔍 AI Helper - Analisi Automatica delle Email")
+def generate_prompt(email_content, prompt_template):
+    return prompt_template + "\nEmail da analizzare:\n" + email_content + "\n"
+
+def save_to_google_sheet(email_content, analysis_type, priority, prompt_used, result, rating='', comment=''):
+    row = [
+        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        email_content,
+        analysis_type,
+        priority,
+        prompt_used,
+        result,
+        rating,
+        comment
+    ]
+    sheet.append_row(row, value_input_option="USER_ENTERED")
+
+# UI
+st.set_page_config(page_title="AI Mail Summarizer", layout="centered")
+
+st.markdown("""
+<h1 style='text-align: center; font-size: 3em;'>📩 AI Mail Summarizer</h1>
+<p style='text-align: center; font-size: 1.2em; color: gray;'>Sintesi automatica e tracciamento delle comunicazioni tecniche</p>
+""", unsafe_allow_html=True)
+
 email_content = st.text_area("Incolla qui il contenuto dell'email o testo da analizzare", height=200)
-uploaded_files = st.file_uploader("Carica file da analizzare (.eml, .pdf, .docx, .xlsx, .jpg, .png)", accept_multiple_files=True)
+uploaded_files = st.file_uploader("Carica file (.eml, .pdf, .docx, .xlsx, .jpg, .png)", accept_multiple_files=True)
 
 if uploaded_files:
     for uploaded_file in uploaded_files:
@@ -92,10 +104,6 @@ prompt_template = load_prompt_template()
 if st.button("🚀 AI Magic - Avvia Analisi"):
     if email_content.strip():
         prompt = generate_prompt(email_content, prompt_template)
-
-        if DEV_MODE:
-            st.markdown("### 🔍 Prompt inviato all'AI")
-            st.text_area("Prompt usato per la richiesta", prompt, height=300)
 
         try:
             response = client.chat.completions.create(
@@ -110,17 +118,19 @@ if st.button("🚀 AI Magic - Avvia Analisi"):
             result = response.choices[0].message.content
             st.text_area("Risultato Generato dall'AI", result, height=400)
 
-            # 💾 Pulsante per scaricare il risultato
+            save_to_google_sheet(email_content, "Analisi Completa", "Alta", prompt, result)
+
             st.download_button(
-                label="📄 Scarica il risultato",
+                label="📄 Scarica il risultato come file .txt",
                 data=result,
-                file_name="AI_Helper_Output.txt",
+                file_name="risultato_ai.txt",
                 mime="text/plain"
             )
 
             rating = st.slider("Quanto sei soddisfatto del risultato?", 1, 5)
+            comment = st.text_area("Hai suggerimenti o commenti?")
             if st.button("✅ Salva il Feedback"):
-                save_to_log(email_content, "Analisi Completa", "Alta", prompt, result, rating)
+                save_to_google_sheet(email_content, "Analisi Completa", "Alta", prompt, result, rating, comment)
                 st.success("Feedback salvato con successo!")
         except Exception as e:
             st.error(f"Errore durante l'elaborazione: {e}")
