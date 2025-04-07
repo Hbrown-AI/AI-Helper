@@ -104,6 +104,7 @@ if st.button("🔄 Nuova Analisi"):
     st.session_state["email_content"] = ""
     st.session_state["last_result"] = ""
     st.session_state["last_prompt"] = ""
+    st.experimental_rerun()
 
 email_content = st.text_area("Incolla qui il contenuto dell'email o testo da analizzare", 
                              value=st.session_state["email_content"], height=200)
