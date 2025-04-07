@@ -89,9 +89,10 @@ if "last_result" not in st.session_state:
     st.session_state["last_result"] = ""
 if "last_prompt" not in st.session_state:
     st.session_state["last_prompt"] = ""
+if "reset_trigger" not in st.session_state:
+    st.session_state["reset_trigger"] = False
 
 st.set_page_config(page_title="AI Mail Summarizer", layout="centered")
-
 st.image("leucci_logotipo.png", width=220)
 
 st.markdown("""
@@ -103,11 +104,22 @@ if st.button("🔄 Nuova Analisi"):
     st.session_state["email_content"] = ""
     st.session_state["last_result"] = ""
     st.session_state["last_prompt"] = ""
+    st.session_state["reset_trigger"] = True
     st.query_params.reset = "1"
 
-email_content = st.text_area("Incolla qui il contenuto dell'email o testo da analizzare", 
-                             value=st.session_state["email_content"], height=200)
-uploaded_files = st.file_uploader("Carica file (.eml, .pdf, .docx, .xlsx, .jpg, .png)", accept_multiple_files=True)
+email_input_key = "email_input_" + str(datetime.now().timestamp()) if st.session_state.get("reset_trigger") else "email_input"
+email_content = st.text_area(
+    "Incolla qui il contenuto dell'email o testo da analizzare",
+    value=st.session_state["email_content"],
+    height=200,
+    key=email_input_key
+)
+
+if st.session_state.get("reset_trigger"):
+    st.session_state["reset_trigger"] = False
+    uploaded_files = None
+else:
+    uploaded_files = st.file_uploader("Carica file (.eml, .pdf, .docx, .xlsx, .jpg, .png)", accept_multiple_files=True)
 
 if uploaded_files:
     for uploaded_file in uploaded_files:
