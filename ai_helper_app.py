@@ -10,8 +10,6 @@ import email
 from datetime import datetime
 import gspread
 from google.oauth2.service_account import Credentials
-from streamlit.runtime.scriptrunner import RerunException
-from streamlit.runtime.scriptrunner.script_run_context import get_script_run_ctx
 
 # Configura OpenAI
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -105,7 +103,7 @@ if st.button("🔄 Nuova Analisi"):
     st.session_state["email_content"] = ""
     st.session_state["last_result"] = ""
     st.session_state["last_prompt"] = ""
-    raise RerunException(get_script_run_ctx())
+    st.experimental_set_query_params(reset="1")
 
 email_content = st.text_area("Incolla qui il contenuto dell'email o testo da analizzare", 
                              value=st.session_state["email_content"], height=200)
