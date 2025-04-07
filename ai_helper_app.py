@@ -10,6 +10,8 @@ import email
 from datetime import datetime
 import gspread
 from google.oauth2.service_account import Credentials
+from streamlit.runtime.scriptrunner import RerunException
+from streamlit.runtime.scriptrunner.script_run_context import get_script_run_ctx
 
 # Configura OpenAI
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -92,19 +94,18 @@ if "last_prompt" not in st.session_state:
 
 st.set_page_config(page_title="AI Mail Summarizer", layout="centered")
 
-# ✅ Mostra il logo all'inizio della pagina
-st.image("logo.png", width=150)
+st.image("leucci_logotipo.png", width=220)
 
 st.markdown("""
-<h1 style='text-align: center; font-size: 3em;'>📩 AI Mail Summarizer</h1>
-<p style='text-align: center; font-size: 1.2em; color: gray;'>Sintesi automatica e tracciamento delle comunicazioni tecniche</p>
+<h1 style='text-align: center; font-size: 2.5em;'>📩 AI Mail Summarizer</h1>
+<p style='text-align: center; font-size: 1.1em; color: gray;'>Sintesi automatica e tracciamento delle comunicazioni tecniche</p>
 """, unsafe_allow_html=True)
 
 if st.button("🔄 Nuova Analisi"):
     st.session_state["email_content"] = ""
     st.session_state["last_result"] = ""
     st.session_state["last_prompt"] = ""
-    st.experimental_rerun()
+    raise RerunException(get_script_run_ctx())
 
 email_content = st.text_area("Incolla qui il contenuto dell'email o testo da analizzare", 
                              value=st.session_state["email_content"], height=200)
