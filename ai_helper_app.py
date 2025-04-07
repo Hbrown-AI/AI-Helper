@@ -103,7 +103,11 @@ if st.button("🔄 Nuova Analisi"):
     st.session_state["email_content"] = ""
     st.session_state["last_result"] = ""
     st.session_state["last_prompt"] = ""
-    st.experimental_set_query_params(reset="1")
+    Please replace st.experimental_set_query_params with st.query_params.
+
+st.experimental_set_query_params will be removed after 2024-04-11.
+
+Refer to our docs page for more information.
 
 email_content = st.text_area("Incolla qui il contenuto dell'email o testo da analizzare", 
                              value=st.session_state["email_content"], height=200)
