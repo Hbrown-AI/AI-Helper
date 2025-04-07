@@ -83,14 +83,30 @@ def save_to_google_sheet(email_content, analysis_type, priority, prompt_used, re
     ]
     sheet.append_row(row, value_input_option="USER_ENTERED")
 
+if "email_content" not in st.session_state:
+    st.session_state["email_content"] = ""
+if "last_result" not in st.session_state:
+    st.session_state["last_result"] = ""
+if "last_prompt" not in st.session_state:
+    st.session_state["last_prompt"] = ""
+
 st.set_page_config(page_title="AI Mail Summarizer", layout="centered")
+
+# ✅ Mostra il logo all'inizio della pagina
+st.image("logo.png", width=150)
 
 st.markdown("""
 <h1 style='text-align: center; font-size: 3em;'>📩 AI Mail Summarizer</h1>
 <p style='text-align: center; font-size: 1.2em; color: gray;'>Sintesi automatica e tracciamento delle comunicazioni tecniche</p>
 """, unsafe_allow_html=True)
 
-email_content = st.text_area("Incolla qui il contenuto dell'email o testo da analizzare", height=200)
+if st.button("🔄 Nuova Analisi"):
+    st.session_state["email_content"] = ""
+    st.session_state["last_result"] = ""
+    st.session_state["last_prompt"] = ""
+
+email_content = st.text_area("Incolla qui il contenuto dell'email o testo da analizzare", 
+                             value=st.session_state["email_content"], height=200)
 uploaded_files = st.file_uploader("Carica file (.eml, .pdf, .docx, .xlsx, .jpg, .png)", accept_multiple_files=True)
 
 if uploaded_files:
@@ -102,6 +118,7 @@ result = None
 
 if st.button("🚀 AI Magic - Avvia Analisi"):
     if email_content.strip():
+        st.session_state["email_content"] = email_content
         prompt = generate_prompt(email_content, prompt_template)
 
         try:
@@ -117,7 +134,6 @@ if st.button("🚀 AI Magic - Avvia Analisi"):
             result = response.choices[0].message.content
             st.session_state["last_result"] = result
             st.session_state["last_prompt"] = prompt
-            st.session_state["email_content"] = email_content
 
             st.text_area("Risultato Generato dall'AI", result, height=400)
 
@@ -134,8 +150,7 @@ if st.button("🚀 AI Magic - Avvia Analisi"):
     else:
         st.warning("⚠️ Inserisci del testo o carica un file prima di procedere.")
 
-# Se c'è un risultato, abilitiamo la sezione di feedback
-if "last_result" in st.session_state:
+if st.session_state["last_result"]:
     st.subheader("💬 Lascia un feedback sul risultato")
     with st.form("feedback_form"):
         rating = st.slider("Quanto sei soddisfatto del risultato?", 1, 5)
@@ -152,3 +167,6 @@ if "last_result" in st.session_state:
                 comment
             )
             st.success("✅ Feedback salvato con successo!")
+            st.session_state["email_content"] = ""
+            st.session_state["last_result"] = ""
+            st.session_state["last_prompt"] = ""
