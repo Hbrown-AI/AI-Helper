@@ -4,7 +4,6 @@ import openai
 import base64
 import os
 from datetime import datetime
-from dotenv import load_dotenv
 
 # Carica le variabili d'ambiente da secrets
 openai.api_key = st.secrets["OPENAI_API_KEY"]
