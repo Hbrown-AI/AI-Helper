@@ -15,7 +15,7 @@ from google.oauth2.service_account import Credentials
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 DEFAULT_MODEL = "gpt-4o"
 DEFAULT_TEMPERATURE = 0.5
-DEFAULT_MAX_TOKENS = 40000
+DEFAULT_MAX_TOKENS = 4500
 
 # Google Sheets
 scope = ["https://www.googleapis.com/auth/spreadsheets"]
