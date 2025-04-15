@@ -10,12 +10,21 @@ from email import policy
 from email.parser import BytesParser
 from datetime import datetime
 import base64
+import gspread
+from google.oauth2.service_account import Credentials
 
 # --- Configurazione ---
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 MODEL_NAME = "gpt-4o"
 TEMPERATURE = 0.5
 MAX_TOKENS = 6000
+GOOGLE_CREDENTIALS = st.secrets["GOOGLE_CREDENTIALS"]
+GOOGLE_SHEET_ID = st.secrets["GOOGLE_SHEET_ID"]
+
+# Setup Google Sheets
+credentials = Credentials.from_service_account_info(eval(GOOGLE_CREDENTIALS))
+client = gspread.authorize(credentials)
+sheet = client.open_by_key(GOOGLE_SHEET_ID).sheet1
 
 st.set_page_config(layout="wide", page_title="AI Mail Assistant", page_icon="📩")
 
@@ -33,9 +42,9 @@ def read_docx(file):
 
 def read_excel(file):
     wb = openpyxl.load_workbook(file, data_only=True)
-    sheet = wb.active
+    sheet_data = wb.active
     text = ""
-    for row in sheet.iter_rows(values_only=True):
+    for row in sheet_data.iter_rows(values_only=True):
         text += " | ".join([str(cell) if cell else "" for cell in row]) + "\n"
     return text
 
@@ -119,3 +128,21 @@ with col2:
         b64 = base64.b64encode(st.session_state["result"].encode()).decode()
         href = f'<a href="data:file/txt;base64,{b64}" download="analisi_ai.txt">📄 Scarica il risultato come file .txt</a>'
         st.markdown(href, unsafe_allow_html=True)
+
+# --- Sezione Feedback ---
+if st.session_state["result"]:
+    st.markdown("---")
+    st.markdown("### 💬 Lascia un feedback sul risultato")
+    rating = st.slider("Quanto è utile questa analisi?", 1, 5, value=3)
+    comment = st.text_area("Commenti o suggerimenti")
+
+    if st.button("📩 Invia feedback"):
+        try:
+            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            sheet.append_row([now, st.session_state["input_text"], st.session_state["result"], rating, comment])
+            st.success("✅ Grazie per il tuo feedback!")
+            st.session_state["input_text"] = ""
+            st.session_state["result"] = ""
+            st.experimental_rerun()
+        except Exception as e:
+            st.error(f"Errore durante il salvataggio del feedback: {e}")
