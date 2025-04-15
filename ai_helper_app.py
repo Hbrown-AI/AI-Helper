@@ -9,6 +9,7 @@ import email
 from email import policy
 from email.parser import BytesParser
 from datetime import datetime
+import base64
 
 # --- Configurazione ---
 openai.api_key = st.secrets["OPENAI_API_KEY"]
@@ -64,42 +65,57 @@ st.image("logo.png", width=180)
 
 col1, col2 = st.columns([1, 1])
 
+if "result" not in st.session_state:
+    st.session_state["result"] = ""
+
+if "input_text" not in st.session_state:
+    st.session_state["input_text"] = ""
+
 with col1:
     st.markdown("## 📨 Nuova Analisi")
     st.write("Incolla un testo o carica uno o più file. L'assistente AI analizzerà i contenuti per fornire una sintesi tecnica e operativa.")
-    email_text = st.text_area("✍️ Inserisci il contenuto dell'email", height=180)
+    email_text = st.text_area("✍️ Inserisci il contenuto dell'email", value=st.session_state["input_text"], height=180)
     uploaded_files = st.file_uploader("📎 Allega file (PDF, DOCX, XLSX, EML, TXT)", accept_multiple_files=True,
                                        type=["pdf", "docx", "xlsx", "eml", "txt"])
-    analyze = st.button("🔍 Avvia Analisi")
+    
+    if st.button("🔍 Avvia Analisi"):
+        full_input = email_text.strip()
+        if uploaded_files:
+            full_input += "\n" + get_file_text(uploaded_files)
+
+        if full_input.strip():
+            with st.spinner("🧠 Analisi in corso..."):
+                try:
+                    with open("prompt_template.txt", "r") as f:
+                        prompt_template = f.read()
+                    prompt = f"{prompt_template}\n\nEmail da analizzare:\n{full_input}"
+                    response = openai.chat.completions.create(
+                        model=MODEL_NAME,
+                        messages=[
+                            {"role": "system", "content": "Sei un assistente utile e professionale."},
+                            {"role": "user", "content": prompt}
+                        ],
+                        temperature=TEMPERATURE,
+                        max_tokens=MAX_TOKENS
+                    )
+                    st.session_state["result"] = response.choices[0].message.content
+                    st.session_state["input_text"] = email_text
+                except Exception as e:
+                    st.error(f"Errore durante l'elaborazione: {e}")
+        else:
+            st.warning("⚠️ Inserisci del testo o carica un file.")
+
+    if st.button("🔄 Nuova Analisi"):
+        st.session_state["input_text"] = ""
+        st.session_state["result"] = ""
+        st.experimental_rerun()
 
 with col2:
     st.markdown("## 🧠 Risultato")
-    output_area = st.empty()
+    if st.session_state["result"]:
+        st.text_area("Risposta AI", st.session_state["result"], height=400)
 
-# --- Logica Analisi ---
-if analyze:
-    full_input = email_text.strip()
-    if uploaded_files:
-        full_input += "\n" + get_file_text(uploaded_files)
-
-    if full_input.strip():
-        with st.spinner("🧠 Analisi in corso..."):
-            try:
-                with open("prompt_template.txt", "r") as f:
-                    prompt_template = f.read()
-                prompt = f"{prompt_template}\n\nEmail da analizzare:\n{full_input}"
-                response = openai.chat.completions.create(
-                    model=MODEL_NAME,
-                    messages=[
-                        {"role": "system", "content": "Sei un assistente utile e professionale."},
-                        {"role": "user", "content": prompt}
-                    ],
-                    temperature=TEMPERATURE,
-                    max_tokens=MAX_TOKENS
-                )
-                result = response.choices[0].message.content
-                output_area.text_area("Risposta AI", result, height=250)
-            except Exception as e:
-                st.error(f"Errore durante l'elaborazione: {e}")
-    else:
-        st.warning("⚠️ Inserisci del testo o carica un file.")
+        # Download output
+        b64 = base64.b64encode(st.session_state["result"].encode()).decode()
+        href = f'<a href="data:file/txt;base64,{b64}" download="analisi_ai.txt">📄 Scarica il risultato come file .txt</a>'
+        st.markdown(href, unsafe_allow_html=True)
