@@ -1,18 +1,24 @@
 
 import streamlit as st
-import base64
+import openai
 import os
-from PIL import Image
 import pdfplumber
 import docx
 import openpyxl
-import mimetypes
+import email
+from email import policy
+from email.parser import BytesParser
+from datetime import datetime
 
-# Configurazione
-st.set_page_config(layout="wide", page_title="AI Helper", page_icon="📩")
+# --- Configurazione ---
+openai.api_key = st.secrets["OPENAI_API_KEY"]
+MODEL_NAME = "gpt-4o"
+TEMPERATURE = 0.5
+MAX_TOKENS = 6000
 
-# --- Funzioni ---
+st.set_page_config(layout="wide", page_title="AI Mail Assistant", page_icon="📩")
 
+# --- Funzioni per lettura file ---
 def read_pdf(file):
     text = ""
     with pdfplumber.open(file) as pdf:
@@ -29,53 +35,71 @@ def read_excel(file):
     sheet = wb.active
     text = ""
     for row in sheet.iter_rows(values_only=True):
-        text += " | ".join([str(cell) if cell is not None else "" for cell in row]) + "\n"
+        text += " | ".join([str(cell) if cell else "" for cell in row]) + "\n"
     return text
+
+def read_eml(file):
+    msg = BytesParser(policy=policy.default).parse(file)
+    return msg.get_body(preferencelist=('plain')).get_content()
 
 def get_file_text(uploaded_files):
     combined_text = ""
     for uploaded_file in uploaded_files:
-        file_type = uploaded_file.type
-        if file_type == "application/pdf":
+        if uploaded_file.type == "application/pdf":
             combined_text += read_pdf(uploaded_file)
-        elif file_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+        elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
             combined_text += read_docx(uploaded_file)
-        elif file_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+        elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
             combined_text += read_excel(uploaded_file)
-        elif file_type.startswith("text/"):
-            combined_text += str(uploaded_file.read(), "utf-8")
+        elif uploaded_file.type == "message/rfc822":
+            combined_text += read_eml(uploaded_file)
+        elif uploaded_file.type.startswith("text/"):
+            combined_text += uploaded_file.read().decode("utf-8")
         else:
-            combined_text += f"\n[File non supportato: {uploaded_file.name}]"
+            combined_text += f"\n[Formato file non supportato: {uploaded_file.name}]"
     return combined_text
 
 # --- Layout ---
-
-# Logo
 st.image("logo.png", width=180)
 
-# Colonne layout
 col1, col2 = st.columns([1, 1])
 
 with col1:
-    st.markdown("## Nuova Analisi")
-    st.write("Salve! Posso aiutarti ad analizzare e strutturare una discussione email concentrata su dettagli tecnici e commerciali. Se hai un thread di email da esaminare, sentiti libero di copiarle+incollarle qui. Una volta avviata l'analisi, ti fornirò un riepilogo cronologico con codici, tecnici, azioni principali e prossimi step.")
-    
-    email_text = st.text_area("Inputo dati", "Incolla qui il contenuto dell’email o testo da analizzare", height=150)
-
-    uploaded_files = st.file_uploader("Allega file (PDF, Word, Excel, TXT)", accept_multiple_files=True, type=["pdf", "docx", "xlsx", "txt"])
-
-    if st.button("Nuova Analisi"):
-        input_text = email_text
-        if uploaded_files:
-            input_text += "\n\n" + get_file_text(uploaded_files)
-        st.session_state["input_text"] = input_text
-        st.session_state["output_text"] = "🧠 Elaborazione AI in corso..."  # Placeholder
+    st.markdown("## 📨 Nuova Analisi")
+    st.write("Incolla un testo o carica uno o più file. L'assistente AI analizzerà i contenuti per fornire una sintesi tecnica e operativa.")
+    email_text = st.text_area("✍️ Inserisci il contenuto dell'email", height=180)
+    uploaded_files = st.file_uploader("📎 Allega file (PDF, DOCX, XLSX, EML, TXT)", accept_multiple_files=True,
+                                       type=["pdf", "docx", "xlsx", "eml", "txt"])
+    analyze = st.button("🔍 Avvia Analisi")
 
 with col2:
-    st.markdown("## Risultato")
-    st.write(st.session_state.get("output_text", ""))
+    st.markdown("## 🧠 Risultato")
+    output_area = st.empty()
 
-    st.markdown("#### Lascia un feedback sul risultato")
-    st.rating = st.radio("⭐️", ["⭐️", "⭐️⭐️", "⭐️⭐️⭐️", "⭐️⭐️⭐️⭐️", "⭐️⭐️⭐️⭐️⭐️"], label_visibility="collapsed", horizontal=True)
-    st.text_input("Hai suggerimenti o commenti?")
-    st.button("Invia feedback")
+# --- Logica Analisi ---
+if analyze:
+    full_input = email_text.strip()
+    if uploaded_files:
+        full_input += "\n" + get_file_text(uploaded_files)
+
+    if full_input.strip():
+        with st.spinner("🧠 Analisi in corso..."):
+            try:
+                with open("prompt_template.txt", "r") as f:
+                    prompt_template = f.read()
+                prompt = f"{prompt_template}\n\nEmail da analizzare:\n{full_input}"
+                response = openai.chat.completions.create(
+                    model=MODEL_NAME,
+                    messages=[
+                        {"role": "system", "content": "Sei un assistente utile e professionale."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=TEMPERATURE,
+                    max_tokens=MAX_TOKENS
+                )
+                result = response.choices[0].message.content
+                output_area.text_area("Risposta AI", result, height=250)
+            except Exception as e:
+                st.error(f"Errore durante l'elaborazione: {e}")
+    else:
+        st.warning("⚠️ Inserisci del testo o carica un file.")
