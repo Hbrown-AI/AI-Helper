@@ -11,6 +11,7 @@ from email.parser import BytesParser
 from datetime import datetime
 import base64
 import gspread
+import json
 from google.oauth2.service_account import Credentials
 
 # --- Configurazione ---
@@ -21,14 +22,13 @@ MAX_TOKENS = 6000
 GOOGLE_CREDENTIALS = st.secrets["GOOGLE_CREDENTIALS"]
 GOOGLE_SHEET_ID = st.secrets["GOOGLE_SHEET_ID"]
 
-# Setup Google Sheets
-credentials = Credentials.from_service_account_info(eval(GOOGLE_CREDENTIALS))
+# Setup Google Sheets (patchata con json.loads)
+credentials = Credentials.from_service_account_info(json.loads(GOOGLE_CREDENTIALS))
 client = gspread.authorize(credentials)
 sheet = client.open_by_key(GOOGLE_SHEET_ID).sheet1
 
 st.set_page_config(layout="wide", page_title="AI Mail Assistant", page_icon="📩")
 
-# --- Funzioni per lettura file ---
 def read_pdf(file):
     text = ""
     with pdfplumber.open(file) as pdf:
@@ -124,12 +124,10 @@ with col2:
     if st.session_state["result"]:
         st.text_area("Risposta AI", st.session_state["result"], height=400)
 
-        # Download output
         b64 = base64.b64encode(st.session_state["result"].encode()).decode()
         href = f'<a href="data:file/txt;base64,{b64}" download="analisi_ai.txt">📄 Scarica il risultato come file .txt</a>'
         st.markdown(href, unsafe_allow_html=True)
 
-# --- Sezione Feedback ---
 if st.session_state["result"]:
     st.markdown("---")
     st.markdown("### 💬 Lascia un feedback sul risultato")
