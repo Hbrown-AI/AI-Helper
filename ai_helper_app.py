@@ -1,184 +1,146 @@
 
 import streamlit as st
-from openai import OpenAI
+import openai
 import os
 import pdfplumber
 import docx
 import openpyxl
-from PIL import Image
 import email
+from email import policy
+from email.parser import BytesParser
 from datetime import datetime
+import base64
 import gspread
+import json
 from google.oauth2.service_account import Credentials
 
-# Configura OpenAI
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-DEFAULT_MODEL = "gpt-4o"
-DEFAULT_TEMPERATURE = 0.5
-DEFAULT_MAX_TOKENS = 4500
+# --- Configurazione ---
+openai.api_key = st.secrets["OPENAI_API_KEY"]
+MODEL_NAME = "gpt-4o"
+TEMPERATURE = 0.5
+MAX_TOKENS = 6000
+GOOGLE_CREDENTIALS = st.secrets["GOOGLE_CREDENTIALS"]
+GOOGLE_SHEET_ID = st.secrets["GOOGLE_SHEET_ID"]
 
-# Google Sheets
-scope = ["https://www.googleapis.com/auth/spreadsheets"]
-credentials = Credentials.from_service_account_info(eval(os.getenv("GOOGLE_CREDENTIALS")), scopes=scope)
-gc = gspread.authorize(credentials)
-sheet = gc.open_by_key("1N4XRmuACsYxof40ZnG_RGKDjdv8SYY3HAXLO0xk3BhE").sheet1
+# Setup Google Sheets (patchata con json.loads)
+credentials = Credentials.from_service_account_info(json.loads(GOOGLE_CREDENTIALS.replace("\\n", "\n")))
+client = gspread.authorize(credentials)
+sheet = client.open_by_key(GOOGLE_SHEET_ID).sheet1
 
-def extract_content_from_file(file):
-    file_type = file.type
-    if file_type == "application/pdf":
-        with pdfplumber.open(file) as pdf:
-            text = ''
-            for page in pdf.pages:
-                page_text = page.extract_text()
-                if page_text:
-                    text += page_text + '\n'
-        return text
-    elif file_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-        doc = docx.Document(file)
-        return '\n'.join([p.text for p in doc.paragraphs])
-    elif file_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
-        wb = openpyxl.load_workbook(file)
-        sheet_data = wb.active
-        return '\n'.join([' '.join([str(cell) for cell in row if cell]) for row in sheet_data.iter_rows()])
-    elif file_type in ["image/jpeg", "image/png"]:
-        image = Image.open(file)
-        return f"Immagine caricata: {file.name} - Dimensioni: {image.size}"
-    elif file_type == "message/rfc822":
-        msg = email.message_from_bytes(file.read())
-        text_content = ""
-        if msg.is_multipart():
-            for part in msg.walk():
-                if part.get_content_type() == "text/plain":
-                    payload = part.get_payload(decode=True)
-                    if payload:
-                        text_content += payload.decode("utf-8", errors="ignore")
-        else:
-            payload = msg.get_payload(decode=True)
-            if payload:
-                text_content = payload.decode("utf-8", errors="ignore")
-        return text_content
-    else:
-        return "Formato file non supportato."
+st.set_page_config(layout="wide", page_title="AI Mail Assistant", page_icon="📩")
 
-def load_prompt_template():
-    try:
-        with open("prompt_template.txt", "r", encoding="utf-8") as file:
-            return file.read()
-    except FileNotFoundError:
-        return "Analizza la seguente email e rispondi ai seguenti punti:"
+def read_pdf(file):
+    text = ""
+    with pdfplumber.open(file) as pdf:
+        for page in pdf.pages:
+            text += page.extract_text() + "\n"
+    return text
 
-def generate_prompt(email_content, prompt_template):
-    return prompt_template + "\nEmail da analizzare:\n" + email_content + "\n"
+def read_docx(file):
+    doc = docx.Document(file)
+    return "\n".join([p.text for p in doc.paragraphs])
 
-def save_to_google_sheet(email_content, analysis_type, priority, prompt_used, result, rating='', comment=''):
-    row = [
-        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        email_content,
-        analysis_type,
-        priority,
-        prompt_used,
-        result,
-        rating,
-        comment
-    ]
-    sheet.append_row(row, value_input_option="USER_ENTERED")
+def read_excel(file):
+    wb = openpyxl.load_workbook(file, data_only=True)
+    sheet_data = wb.active
+    text = ""
+    for row in sheet_data.iter_rows(values_only=True):
+        text += " | ".join([str(cell) if cell else "" for cell in row]) + "\n"
+    return text
 
-if "email_content" not in st.session_state:
-    st.session_state["email_content"] = ""
-if "last_result" not in st.session_state:
-    st.session_state["last_result"] = ""
-if "last_prompt" not in st.session_state:
-    st.session_state["last_prompt"] = ""
-if "reset_trigger" not in st.session_state:
-    st.session_state["reset_trigger"] = False
+def read_eml(file):
+    msg = BytesParser(policy=policy.default).parse(file)
+    return msg.get_body(preferencelist=('plain')).get_content()
 
-st.set_page_config(page_title="AI Mail Summarizer", layout="centered")
-st.image("leucci_logotipo.png", width=220)
-
-st.markdown("""
-<h1 style='text-align: center; font-size: 2.5em;'>📩 AI Mail Summarizer</h1>
-<p style='text-align: center; font-size: 1.1em; color: gray;'>Sintesi automatica e tracciamento delle comunicazioni tecniche</p>
-""", unsafe_allow_html=True)
-
-if st.button("🔄 Nuova Analisi"):
-    st.session_state["email_content"] = ""
-    st.session_state["last_result"] = ""
-    st.session_state["last_prompt"] = ""
-    st.session_state["reset_trigger"] = True
-    st.query_params.reset = "1"
-
-email_input_key = "email_input_" + str(datetime.now().timestamp()) if st.session_state.get("reset_trigger") else "email_input"
-email_content = st.text_area(
-    "Incolla qui il contenuto dell'email o testo da analizzare",
-    value=st.session_state["email_content"],
-    height=200,
-    key=email_input_key
-)
-
-if st.session_state.get("reset_trigger"):
-    st.session_state["reset_trigger"] = False
-    uploaded_files = None
-else:
-    uploaded_files = st.file_uploader("Carica file (.eml, .pdf, .docx, .xlsx, .jpg, .png)", accept_multiple_files=True)
-
-if uploaded_files:
+def get_file_text(uploaded_files):
+    combined_text = ""
     for uploaded_file in uploaded_files:
-        email_content += "\n\n" + extract_content_from_file(uploaded_file)
+        if uploaded_file.type == "application/pdf":
+            combined_text += read_pdf(uploaded_file)
+        elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+            combined_text += read_docx(uploaded_file)
+        elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+            combined_text += read_excel(uploaded_file)
+        elif uploaded_file.type == "message/rfc822":
+            combined_text += read_eml(uploaded_file)
+        elif uploaded_file.type.startswith("text/"):
+            combined_text += uploaded_file.read().decode("utf-8")
+        else:
+            combined_text += f"\n[Formato file non supportato: {uploaded_file.name}]"
+    return combined_text
 
-prompt_template = load_prompt_template()
-result = None
+# --- Layout ---
+st.image("logo.png", width=180)
 
-if st.button("🚀 AI Magic - Avvia Analisi"):
-    if email_content.strip():
-        st.session_state["email_content"] = email_content
-        prompt = generate_prompt(email_content, prompt_template)
+col1, col2 = st.columns([1, 1])
 
+if "result" not in st.session_state:
+    st.session_state["result"] = ""
+
+if "input_text" not in st.session_state:
+    st.session_state["input_text"] = ""
+
+with col1:
+    st.markdown("## 📨 Nuova Analisi")
+    st.write("Incolla un testo o carica uno o più file. L'assistente AI analizzerà i contenuti per fornire una sintesi tecnica e operativa.")
+    email_text = st.text_area("✍️ Inserisci il contenuto dell'email", value=st.session_state["input_text"], height=180)
+    uploaded_files = st.file_uploader("📎 Allega file (PDF, DOCX, XLSX, EML, TXT)", accept_multiple_files=True,
+                                       type=["pdf", "docx", "xlsx", "eml", "txt"])
+    
+    if st.button("🔍 Avvia Analisi"):
+        full_input = email_text.strip()
+        if uploaded_files:
+            full_input += "\n" + get_file_text(uploaded_files)
+
+        if full_input.strip():
+            with st.spinner("🧠 Analisi in corso..."):
+                try:
+                    with open("prompt_template.txt", "r") as f:
+                        prompt_template = f.read()
+                    prompt = f"{prompt_template}\n\nEmail da analizzare:\n{full_input}"
+                    response = openai.chat.completions.create(
+                        model=MODEL_NAME,
+                        messages=[
+                            {"role": "system", "content": "Sei un assistente utile e professionale."},
+                            {"role": "user", "content": prompt}
+                        ],
+                        temperature=TEMPERATURE,
+                        max_tokens=MAX_TOKENS
+                    )
+                    st.session_state["result"] = response.choices[0].message.content
+                    st.session_state["input_text"] = email_text
+                except Exception as e:
+                    st.error(f"Errore durante l'elaborazione: {e}")
+        else:
+            st.warning("⚠️ Inserisci del testo o carica un file.")
+
+    if st.button("🔄 Nuova Analisi"):
+        st.session_state["input_text"] = ""
+        st.session_state["result"] = ""
+        st.experimental_rerun()
+
+with col2:
+    st.markdown("## 🧠 Risultato")
+    if st.session_state["result"]:
+        st.text_area("Risposta AI", st.session_state["result"], height=400)
+
+        b64 = base64.b64encode(st.session_state["result"].encode()).decode()
+        href = f'<a href="data:file/txt;base64,{b64}" download="analisi_ai.txt">📄 Scarica il risultato come file .txt</a>'
+        st.markdown(href, unsafe_allow_html=True)
+
+if st.session_state["result"]:
+    st.markdown("---")
+    st.markdown("### 💬 Lascia un feedback sul risultato")
+    rating = st.slider("Quanto è utile questa analisi?", 1, 5, value=3)
+    comment = st.text_area("Commenti o suggerimenti")
+
+    if st.button("📩 Invia feedback"):
         try:
-            response = client.chat.completions.create(
-                model=DEFAULT_MODEL,
-                messages=[
-                    {"role": "system", "content": "Sei un assistente utile e professionale."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=DEFAULT_TEMPERATURE,
-                max_tokens=DEFAULT_MAX_TOKENS
-            )
-            result = response.choices[0].message.content
-            st.session_state["last_result"] = result
-            st.session_state["last_prompt"] = prompt
-
-            st.text_area("Risultato Generato dall'AI", result, height=400)
-
-            save_to_google_sheet(email_content, "Analisi Completa", "Alta", prompt, result)
-
-            st.download_button(
-                label="📄 Scarica il risultato come file .txt",
-                data=result,
-                file_name="risultato_ai.txt",
-                mime="text/plain"
-            )
+            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            sheet.append_row([now, st.session_state["input_text"], st.session_state["result"], rating, comment])
+            st.success("✅ Grazie per il tuo feedback!")
+            st.session_state["input_text"] = ""
+            st.session_state["result"] = ""
+            st.experimental_rerun()
         except Exception as e:
-            st.error(f"Errore durante l'elaborazione: {e}")
-    else:
-        st.warning("⚠️ Inserisci del testo o carica un file prima di procedere.")
-
-if st.session_state["last_result"]:
-    st.subheader("💬 Lascia un feedback sul risultato")
-    with st.form("feedback_form"):
-        rating = st.slider("Quanto sei soddisfatto del risultato?", 1, 5)
-        comment = st.text_area("Hai suggerimenti o commenti?")
-        submitted = st.form_submit_button("✅ Invia feedback")
-        if submitted:
-            save_to_google_sheet(
-                st.session_state["email_content"],
-                "Analisi Completa",
-                "Alta",
-                st.session_state["last_prompt"],
-                st.session_state["last_result"],
-                rating,
-                comment
-            )
-            st.success("✅ Feedback salvato con successo!")
-            st.session_state["email_content"] = ""
-            st.session_state["last_result"] = ""
-            st.session_state["last_prompt"] = ""
+            st.error(f"Errore durante il salvataggio del feedback: {e}")
