@@ -19,13 +19,20 @@ openai.api_key = st.secrets["OPENAI_API_KEY"]
 MODEL_NAME = "gpt-4o"
 TEMPERATURE = 0.5
 MAX_TOKENS = 6000
-GOOGLE_CREDENTIALS = st.secrets["GOOGLE_CREDENTIALS"]
+import gspread
+from google.oauth2.service_account import Credentials
+
+# Configura OpenAI
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+DEFAULT_MODEL = "gpt-4o"
+DEFAULT_TEMPERATURE = 0.5
+DEFAULT_MAX_TOKENS = 4500
+
+# Google Sheets
+scope = ["https://www.googleapis.com/auth/spreadsheets"]
 GOOGLE_SHEET_ID = st.secrets["GOOGLE_SHEET_ID"]
 
 # Setup Google Sheets (patchata con json.loads)
-credentials = Credentials.from_service_account_info(json.loads(GOOGLE_CREDENTIALS.replace("\\n", "\n")))
-client = gspread.authorize(credentials)
-sheet = client.open_by_key(GOOGLE_SHEET_ID).sheet1
 
 st.set_page_config(layout="wide", page_title="AI Mail Assistant", page_icon="📩")
 
