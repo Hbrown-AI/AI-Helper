@@ -23,7 +23,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 
 # Configura OpenAI
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 DEFAULT_MODEL = "gpt-4o"
 DEFAULT_TEMPERATURE = 0.5
 DEFAULT_MAX_TOKENS = 4500
