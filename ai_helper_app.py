@@ -11,31 +11,6 @@ import base64
 from datetime import datetime
 import json
 import gspread
-
-import re
-
-def clean_output(text, mode="safe"):
-    """
-    Pulisce l'output da simboli markdown indesiderati.
-
-    mode:
-    - "raw": Nessuna pulizia
-    - "safe": Mantiene il grassetto (**), rimuove titoli (#), bullet (*, -)
-    - "strict": Rimuove tutto il markdown (anche il grassetto)
-    """
-    if not text:
-        return ""
-    if mode == "raw":
-        return text
-    elif mode == "strict":
-        text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
-        text = re.sub(r'^#+\s+', '', text, flags=re.MULTILINE)
-        text = re.sub(r'^\s*[-*]\s+', '', text, flags=re.MULTILINE)
-    elif mode == "safe":
-        text = re.sub(r'^#+\s+', '', text, flags=re.MULTILINE)
-        text = re.sub(r'^\s*[-*]\s+', '', text, flags=re.MULTILINE)
-    return text
-
 from google.oauth2.service_account import Credentials
 
 # --- Configurazione OpenAI ---
@@ -119,15 +94,7 @@ with col1:
                         temperature=TEMPERATURE,
                         max_tokens=MAX_TOKENS
                     )
-                    # Output grezzo da OpenAI
-                    try:
-                        raw_output = response.choices[0].message.content
-                        print('[DEBUG] Output grezzo ricevuto:\n', raw_output)
-                        output_text = clean_output(raw_output, mode="safe")
-                        print('[DEBUG] Output dopo pulizia:\n', output_text)
-                    except Exception as e:
-                        print('[ERRORE] Problema durante la pulizia output:', e)
-                        output_text = 'Errore durante l\'analisi del contenuto.'
+                    st.session_state["result"] = response.choices[0].message.content
                     st.session_state["input_text"] = email_text
                 except Exception as e:
                     st.error(f"Errore durante l'elaborazione: {e}")
