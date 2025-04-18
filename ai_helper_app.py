@@ -23,6 +23,8 @@ def clean_output(text, mode="safe"):
     - "safe": Mantiene il grassetto (**), rimuove titoli (#), bullet (*, -)
     - "strict": Rimuove tutto il markdown (anche il grassetto)
     """
+    if not text:
+        return ""
     if mode == "raw":
         return text
     elif mode == "strict":
@@ -117,8 +119,15 @@ with col1:
                         temperature=TEMPERATURE,
                         max_tokens=MAX_TOKENS
                     )
-                    raw_output = response.choices[0].message.content
-                    output_text = clean_output(raw_output, mode="safe")
+                    # Output grezzo da OpenAI
+                    try:
+                        raw_output = response.choices[0].message.content
+                        print('[DEBUG] Output grezzo ricevuto:\n', raw_output)
+                        output_text = clean_output(raw_output, mode="safe")
+                        print('[DEBUG] Output dopo pulizia:\n', output_text)
+                    except Exception as e:
+                        print('[ERRORE] Problema durante la pulizia output:', e)
+                        output_text = 'Errore durante l\'analisi del contenuto.'
                     st.session_state["input_text"] = email_text
                 except Exception as e:
                     st.error(f"Errore durante l'elaborazione: {e}")
