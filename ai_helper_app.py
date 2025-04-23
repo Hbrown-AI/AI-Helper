@@ -68,10 +68,11 @@ col1, col2 = st.columns([1, 1])
 
 if "result" not in st.session_state: st.session_state["result"] = ""
 if "input_text" not in st.session_state: st.session_state["input_text"] = ""
+st.session_state["input_area"] = ""
 
 with col1:
     st.markdown("## 📨 Nuova Analisi")
-    email_text = st.text_area("✍️ Inserisci l'email o testo da analizzare", value=st.session_state["input_text"], height=180)
+    email_text = st.text_area("✍️ Inserisci l'email o testo da analizzare", value=st.session_state["input_text"], key="input_area", height=180)
     uploaded_files = st.file_uploader("📎 Allega file (PDF, DOCX, XLSX, EML, TXT)", accept_multiple_files=True, type=["pdf", "docx", "xlsx", "eml", "txt"])
 
     if st.button("🔍 Avvia Analisi"):
@@ -103,11 +104,12 @@ with col1:
 
     if st.button("🔄 Nuova Analisi"):
         st.session_state["input_text"] = ""
+st.session_state["input_area"] = ""
         st.session_state["result"] = ""
         st.rerun()
 
 with col2:
-    st.markdown("## 🧠 Risultato")
+    st.markdown("## 📝 Risultato")
     if st.session_state["result"]:
         st.text_area("Risposta AI", st.session_state["result"], height=400)
         b64 = base64.b64encode(st.session_state["result"].encode()).decode()
@@ -128,6 +130,7 @@ if st.session_state["result"]:
             sheet.append_row([now, st.session_state["input_text"], st.session_state["result"], rating, comment])
             st.success("✅ Grazie per il tuo feedback!")
             st.session_state["input_text"] = ""
+st.session_state["input_area"] = ""
             st.session_state["result"] = ""
             st.rerun()
         except Exception as e:
