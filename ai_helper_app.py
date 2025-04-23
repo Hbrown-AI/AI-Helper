@@ -104,7 +104,7 @@ with col1:
     if st.button("🔄 Nuova Analisi"):
         st.session_state["input_text"] = ""
         st.session_state["result"] = ""
-        st.experimental_rerun()
+        st.rerun()
 
 with col2:
     st.markdown("## 🧠 Risultato")
@@ -114,7 +114,14 @@ with col2:
         href = f'<a href="data:file/txt;base64,{b64}" download="analisi_ai.txt">📄 Scarica il risultato come file .txt</a>'
         st.markdown(href, unsafe_allow_html=True)
 
-# --- Feedback ---
+
+    # --- Debug invisibile per Google Sheets ---
+    try:
+        now_debug = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        sheet.append_row([now_debug, "TEST DEBUG", "Funzione Sheets OK", "-", "-"])
+    except Exception as e:
+        st.error(f"Errore connessione Google Sheets (debug): {e}")
+    \n# --- Feedback ---
 if st.session_state["result"]:
     st.markdown("---")
     st.markdown("### 💬 Lascia un feedback sul risultato")
@@ -128,6 +135,6 @@ if st.session_state["result"]:
             st.success("✅ Grazie per il tuo feedback!")
             st.session_state["input_text"] = ""
             st.session_state["result"] = ""
-            st.experimental_rerun()
+            st.rerun()
         except Exception as e:
             st.error(f"Errore durante il salvataggio del feedback: {e}")
