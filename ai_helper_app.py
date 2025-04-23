@@ -115,13 +115,6 @@ with col2:
         st.markdown(href, unsafe_allow_html=True)
 
 
-# --- Debug invisibile per Google Sheets ---
-try:
-    now_debug = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    sheet.append_row([now_debug, "TEST DEBUG", "Funzione Sheets OK", "-", "-"])
-except Exception as e:
-    st.error(f"Errore connessione Google Sheets (debug): {e}")
-
 # --- Feedback ---
 if st.session_state["result"]:
     st.markdown("---")
