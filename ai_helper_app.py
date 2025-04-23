@@ -68,6 +68,7 @@ col1, col2 = st.columns([1, 1])
 
 if "result" not in st.session_state: st.session_state["result"] = ""
 if "input_text" not in st.session_state: st.session_state["input_text"] = ""
+if "input_area" not in st.session_state: st.session_state["input_area"] = ""
 st.session_state["input_area"] = ""
 
 with col1:
@@ -104,6 +105,7 @@ with col1:
 
     if st.button("🔄 Nuova Analisi"):
         st.session_state["input_text"] = ""
+        st.session_state["input_area"] = ""
 st.session_state["input_area"] = ""
         st.session_state["result"] = ""
         st.rerun()
@@ -130,6 +132,7 @@ if st.session_state["result"]:
             sheet.append_row([now, st.session_state["input_text"], st.session_state["result"], rating, comment])
             st.success("✅ Grazie per il tuo feedback!")
             st.session_state["input_text"] = ""
+            st.session_state["input_area"] = ""
 st.session_state["input_area"] = ""
             st.session_state["result"] = ""
             st.rerun()
