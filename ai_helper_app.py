@@ -112,6 +112,10 @@ with col1:
         st.session_state["input_area"] = ""
         st.session_state["result"] = ""
         st.rerun()
+        st.session_state["input_text"] = ""
+        st.session_state["input_area"] = ""
+        st.session_state["result"] = ""
+        st.rerun()
     st.session_state["input_text"] = ""
     st.session_state["input_area"] = ""
     st.session_state["result"] = ""
@@ -134,6 +138,16 @@ if st.session_state["result"]:
     comment = st.text_area("Commenti o suggerimenti")
 
     if st.button("📩 Invia feedback"):
+        try:
+            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            sheet.append_row([now, st.session_state["input_text"], st.session_state["result"], rating, comment])
+            st.success("✅ Grazie per il tuo feedback!")
+            st.session_state["input_text"] = ""
+            st.session_state["input_area"] = ""
+            st.session_state["result"] = ""
+            st.rerun()
+        except Exception as e:
+            st.error(f"Errore durante il salvataggio del feedback: {e}")
     try:
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         sheet.append_row([now, st.session_state["input_text"], st.session_state["result"], rating, comment])
