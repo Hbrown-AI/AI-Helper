@@ -104,6 +104,10 @@ with col1:
             st.warning("⚠️ Inserisci testo o carica un file.")
 
     if st.button("🔄 Nuova Analisi"):
+        st.session_state["input_text"] = ""
+        st.session_state["input_area"] = ""
+        st.session_state["result"] = ""
+        st.rerun()
     st.session_state["input_text"] = ""
     st.session_state["input_area"] = ""
     st.session_state["result"] = ""
