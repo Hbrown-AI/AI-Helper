@@ -1,10 +1,8 @@
-
 import streamlit as st
 import openai
 import pdfplumber
 import docx
 import openpyxl
-import email
 from email import policy
 from email.parser import BytesParser
 import base64
@@ -21,14 +19,18 @@ MAX_TOKENS = 4500
 
 # --- Configurazione Google Sheets ---
 scope = ["https://www.googleapis.com/auth/spreadsheets"]
-credentials = Credentials.from_service_account_info(json.loads(st.secrets["GOOGLE_CREDENTIALS"]), scopes=scope)
+credentials = Credentials.from_service_account_info(
+    json.loads(st.secrets["GOOGLE_CREDENTIALS"]), scopes=scope
+)
 client = gspread.authorize(credentials)
 sheet = client.open_by_key(st.secrets["GOOGLE_SHEET_ID"]).sheet1
 
 # --- Funzioni per lettura file ---
 def read_pdf(file):
     with pdfplumber.open(file) as pdf:
-        return "\n".join([page.extract_text() for page in pdf.pages if page.extract_text()])
+        return "\n".join(
+            [page.extract_text() for page in pdf.pages if page.extract_text()]
+        )
 
 def read_docx(file):
     doc = docx.Document(file)
@@ -37,7 +39,9 @@ def read_docx(file):
 def read_excel(file):
     wb = openpyxl.load_workbook(file, data_only=True)
     sheet_data = wb.active
-    return "\n".join([" | ".join([str(cell) if cell else "" for cell in row]) for row in sheet_data.iter_rows(values_only=True)])
+    return "\n".join(
+        [" | ".join([str(cell) if cell else "" for cell in row]) for row in sheet_data.iter_rows(values_only=True)]
+    )
 
 def read_eml(file):
     msg = BytesParser(policy=policy.default).parse(file)
@@ -66,15 +70,24 @@ st.image("logo.png", width=180)
 
 col1, col2 = st.columns([1, 1])
 
-if "result" not in st.session_state: st.session_state["result"] = ""
-if "input_text" not in st.session_state: st.session_state["input_text"] = ""
-if "input_area" not in st.session_state: st.session_state["input_area"] = ""
-st.session_state["input_area"] = ""
+# Session state iniziale
+for key in ["result", "input_text", "input_area"]:
+    if key not in st.session_state:
+        st.session_state[key] = ""
 
 with col1:
     st.markdown("## 📨 Nuova Analisi")
-    email_text = st.text_area("✍️ Inserisci l'email o testo da analizzare", value=st.session_state["input_text"], key="input_area", height=180)
-    uploaded_files = st.file_uploader("📎 Allega file (PDF, DOCX, XLSX, EML, TXT)", accept_multiple_files=True, type=["pdf", "docx", "xlsx", "eml", "txt"])
+    email_text = st.text_area(
+        "✍️ Inserisci l'email o testo da analizzare",
+        value=st.session_state["input_text"],
+        key="input_area",
+        height=180
+    )
+    uploaded_files = st.file_uploader(
+        "📎 Allega file (PDF, DOCX, XLSX, EML, TXT)",
+        accept_multiple_files=True,
+        type=["pdf", "docx", "xlsx", "eml", "txt"]
+    )
 
     if st.button("🔍 Avvia Analisi"):
         full_input = email_text.strip()
@@ -104,31 +117,17 @@ with col1:
             st.warning("⚠️ Inserisci testo o carica un file.")
 
     if st.button("🔄 Nuova Analisi"):
-        st.session_state["input_text"] = ""
-        st.session_state["input_area"] = ""
-        st.session_state["result"] = ""
-        st.rerun()
-        st.session_state["input_text"] = ""
-        st.session_state["input_area"] = ""
-        st.session_state["result"] = ""
-        st.rerun()
-        st.session_state["input_text"] = ""
-        st.session_state["input_area"] = ""
-        st.session_state["result"] = ""
-        st.rerun()
-    st.session_state["input_text"] = ""
-    st.session_state["input_area"] = ""
-    st.session_state["result"] = ""
-    st.rerun()
+        for key in ["input_text", "input_area", "result"]:
+            st.session_state[key] = ""
+        st.experimental_rerun()
 
 with col2:
-    st.markdown("## 📝 Risultato")
+    st.markdown("## 💡 Risultato")
     if st.session_state["result"]:
         st.text_area("Risposta AI", st.session_state["result"], height=400)
         b64 = base64.b64encode(st.session_state["result"].encode()).decode()
         href = f'<a href="data:file/txt;base64,{b64}" download="analisi_ai.txt">📄 Scarica il risultato come file .txt</a>'
         st.markdown(href, unsafe_allow_html=True)
-
 
 # --- Feedback ---
 if st.session_state["result"]:
@@ -140,41 +139,16 @@ if st.session_state["result"]:
     if st.button("📩 Invia feedback"):
         try:
             now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            sheet.append_row([now, st.session_state["input_text"], st.session_state["result"], rating, comment])
+            sheet.append_row([
+                now,
+                st.session_state["input_text"],
+                st.session_state["result"],
+                rating,
+                comment
+            ])
             st.success("✅ Grazie per il tuo feedback!")
-            st.session_state["input_text"] = ""
-            st.session_state["input_area"] = ""
-            st.session_state["result"] = ""
-            st.rerun()
+            for key in ["input_text", "input_area", "result"]:
+                st.session_state[key] = ""
+            st.experimental_rerun()
         except Exception as e:
             st.error(f"Errore durante il salvataggio del feedback: {e}")
-    try:
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        sheet.append_row([now, st.session_state["input_text"], st.session_state["result"], rating, comment])
-        st.success("✅ Grazie per il tuo feedback!")
-        st.session_state["input_text"] = ""
-        st.session_state["input_area"] = ""
-        st.session_state["result"] = ""
-        st.rerun()
-    except Exception as e:
-        st.error(f"Errore durante il salvataggio del feedback: {e}")
-    try:
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        sheet.append_row([now, st.session_state["input_text"], st.session_state["result"], rating, comment])
-        st.success("✅ Grazie per il tuo feedback!")
-        st.session_state["input_text"] = ""
-        st.session_state["input_area"] = ""
-        st.session_state["result"] = ""
-        st.rerun()
-    except Exception as e:
-        st.error(f"Errore durante il salvataggio del feedback: {e}")
-    try:
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        sheet.append_row([now, st.session_state["input_text"], st.session_state["result"], rating, comment])
-        st.success("✅ Grazie per il tuo feedback!")
-        st.session_state["input_text"] = ""
-        st.session_state["input_area"] = ""
-        st.session_state["result"] = ""
-        st.rerun()
-    except Exception as e:
-        st.error(f"Errore durante il salvataggio del feedback: {e}")
