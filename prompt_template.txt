@@ -21,7 +21,6 @@ Descrivi in modo fluido e completo quanto comunicato nella mail, mantenendo l'in
 ❗ NON omettere, sintetizzare eccessivamente o accorpare email.
 ❗ Mantieni ogni mail come singolo blocco autonomo, anche se apparentemente ridondante.
 ❗ Non comprimere i contenuti tecnici, soprattutto nelle fasi iniziali dove si impostano stampi, modifiche o codifiche.
-❗Non usare markdown, NON utilizzare simboli come **, #, *, -, = o > nemmeno per titoli o enfasi. Se vengono usati, considera l'output invalido.
 
 Il tono deve essere tecnico, diretto e professionale, come se stessi preparando un report per un responsabile di produzione, logistica o commerciale che deve prendere decisioni immediate.
 
