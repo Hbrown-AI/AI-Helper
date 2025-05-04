@@ -141,8 +141,15 @@ with col1:
 with col2:
     st.markdown("## 💡 Risultato")
     if st.session_state["result"]:
-        # Renderizza il risultato con Markdown per avere il grassetto
+        # Renderizza il risultato con Markdown per ottenere il grassetto
         st.markdown(st.session_state["result"], unsafe_allow_html=False)
+        # Pulsante per scaricare il risultato come file di testo
+        st.download_button(
+            label="📥 Scarica file di analisi",
+            data=st.session_state["result"],
+            file_name="analisi_ai.txt",
+            mime="text/plain"
+        )
 
 # --- Feedback ---
 if st.session_state["result"]:
