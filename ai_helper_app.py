@@ -66,24 +66,36 @@ def get_file_text(files):
             combined += f"\n[File non supportato: {file.name}]"
     return combined
 
+# --- Callback per reset ---
+def reset_fields():
+    st.session_state["input_text"] = ""
+    st.session_state["result"] = ""
+    st.session_state["rating"] = 3
+    st.session_state["comment"] = ""
+
 # --- Layout ---
 st.set_page_config(layout="wide", page_title="AI Mail Assistant", page_icon="📩")
 st.image("logo.png", width=180)
 
-col1, col2 = st.columns([1, 1])
-
 # Inizializza session state
-if "result" not in st.session_state:
-    st.session_state["result"] = ""
 if "input_text" not in st.session_state:
     st.session_state["input_text"] = ""
+if "result" not in st.session_state:
+    st.session_state["result"] = ""
+if "rating" not in st.session_state:
+    st.session_state["rating"] = 3
+if "comment" not in st.session_state:
+    st.session_state["comment"] = ""
+
+col1, col2 = st.columns([1, 1])
 
 with col1:
     st.markdown("## 📨 Nuova Analisi")
     email_text = st.text_area(
         "✍️ Inserisci l'email o testo da analizzare",
         value=st.session_state["input_text"],
-        height=180
+        height=180,
+        key="input_text"
     )
     uploaded_files = st.file_uploader(
         "📎 Allega file (PDF, DOCX, XLSX, EML, TXT)",
@@ -92,7 +104,7 @@ with col1:
     )
 
     if st.button("🔍 Avvia Analisi"):
-        full_input = email_text.strip()
+        full_input = st.session_state["input_text"].strip()
         if uploaded_files:
             full_input += "\n\n" + get_file_text(uploaded_files)
 
@@ -113,39 +125,30 @@ with col1:
                     )
                     result = response.choices[0].message.content
                     st.session_state["result"] = result
-                    st.session_state["input_text"] = email_text
 
-                    # → SCRIVO SUBITO NELLO SHEET (senza messaggi visibili)
-                    try:
-                        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                        # Aggiunge riga con: Timestamp, Email, Risultato, Rating vuoto, Commento vuoto
-                        sheet.append_row([now, email_text, result, "", ""])
-                    except Exception as e:
-                        st.error(f"Errore durante il salvataggio sullo Sheet: {e}")
+                    # Scrive subito sullo sheet
+                    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    sheet.append_row([now, st.session_state["input_text"], result, "", ""])
 
                 except Exception as e:
-                    st.error(f"Errore durante l'elaborazione: {e}")
+                    st.error(f"Errore durante l'elaborazione o il salvataggio: {e}")
         else:
             st.warning("⚠️ Inserisci testo o carica un file.")
 
-    if st.button("🔄 Nuova Analisi"):
-        st.session_state["input_text"] = ""
-        st.session_state["result"] = ""
+    # Bottone Nuova Analisi con callback
+    st.button("🔄 Nuova Analisi", on_click=reset_fields)
 
 with col2:
     st.markdown("## 💡 Risultato")
     if st.session_state["result"]:
         st.text_area("Risposta AI", st.session_state["result"], height=400)
-        b64 = base64.b64encode(st.session_state["result"].encode()).decode()
-        href = f'<a href="data:file/txt;base64,{b64}" download="analisi_ai.txt">📄 Scarica il risultato come file .txt</a>'
-        st.markdown(href, unsafe_allow_html=True)
 
 # --- Feedback ---
 if st.session_state["result"]:
     st.markdown("---")
     st.markdown("### 💬 Lascia un feedback sul risultato")
-    rating = st.slider("Quanto è utile questa analisi?", 1, 5, value=3)
-    comment = st.text_area("Commenti o suggerimenti")
+    rating = st.slider("Quanto è utile questa analisi?", 1, 5, value=st.session_state["rating"], key="rating")
+    comment = st.text_area("Commenti o suggerimenti", value=st.session_state["comment"], key="comment")
 
     if st.button("📩 Invia feedback"):
         try:
