@@ -16,7 +16,7 @@ from google.oauth2.service_account import Credentials
 # --- Configurazione OpenAI ---
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 MODEL_NAME = "gpt-4o"
-TEMPERATURE = 0.1
+TEMPERATURE = 0.0
 MAX_TOKENS = 4500
 
 # --- Configurazione Google Sheets ---
@@ -87,11 +87,15 @@ if "rating" not in st.session_state:
 if "comment" not in st.session_state:
     st.session_state["comment"] = ""
 
+# Carica il template dal file
+with open("prompt_template.txt", "r") as f:
+    prompt_template = f.read()
+
 col1, col2 = st.columns([1, 1])
 
 with col1:
     st.markdown("## 📨 Nuova Analisi")
-    email_text = st.text_area(
+    st.text_area(
         "✍️ Inserisci l'email o testo da analizzare",
         value=st.session_state["input_text"],
         height=180,
@@ -111,14 +115,12 @@ with col1:
         if full_input:
             with st.spinner("🧠 Analisi in corso..."):
                 try:
-                    with open("prompt_template.txt", "r") as f:
-                        prompt_template = f.read()
-                    prompt = f"{prompt_template}\n\nEmail da analizzare:\n{full_input}"
+                    # Prepara i messaggi: template in system, email in user
                     response = openai.chat.completions.create(
                         model=MODEL_NAME,
                         messages=[
-                            {"role": "system", "content": "Sei un assistente utile e professionale."},
-                            {"role": "user", "content": prompt}
+                            {"role": "system", "content": prompt_template},
+                            {"role": "user", "content": f"Email da analizzare:\n{full_input}"}
                         ],
                         temperature=TEMPERATURE,
                         max_tokens=MAX_TOKENS
@@ -135,7 +137,6 @@ with col1:
         else:
             st.warning("⚠️ Inserisci testo o carica un file.")
 
-    # Bottone Nuova Analisi con callback
     st.button("🔄 Nuova Analisi", on_click=reset_fields)
 
 with col2:
@@ -147,16 +148,15 @@ with col2:
 if st.session_state["result"]:
     st.markdown("---")
     st.markdown("### 💬 Lascia un feedback sul risultato")
-    rating = st.slider("Quanto è utile questa analisi?", 1, 5, value=st.session_state["rating"], key="rating")
-    comment = st.text_area("Commenti o suggerimenti", value=st.session_state["comment"], key="comment")
+    st.slider("Quanto è utile questa analisi?", 1, 5, value=st.session_state["rating"], key="rating")
+    st.text_area("Commenti o suggerimenti", value=st.session_state["comment"], key="comment")
 
     if st.button("📩 Invia feedback"):
         try:
             all_values = sheet.get_all_values()
             last_row = len(all_values)
-            # Aggiorna le colonne Rating (4) e Commento (5) dell’ultima riga
-            sheet.update_cell(last_row, 4, rating)
-            sheet.update_cell(last_row, 5, comment)
+            sheet.update_cell(last_row, 4, st.session_state["rating"])
+            sheet.update_cell(last_row, 5, st.session_state["comment"])
             st.success("✅ Grazie per il tuo feedback!")
         except Exception as e:
             st.error(f"Errore durante il salvataggio del feedback: {e}")
