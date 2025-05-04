@@ -77,6 +77,8 @@ def reset_fields():
 st.set_page_config(layout="wide", page_title="AI Mail Assistant", page_icon="📩")
 st.image("logo.png", width=180)
 
+col1, col2 = st.columns([1, 1])
+
 # Inizializza session state
 if "input_text" not in st.session_state:
     st.session_state["input_text"] = ""
@@ -91,15 +93,15 @@ if "comment" not in st.session_state:
 with open("prompt_template.txt", "r") as f:
     prompt_template = f.read()
 
-col1, col2 = st.columns([1, 1])
-
 with col1:
     st.markdown("## 📨 Nuova Analisi")
+    st.markdown("Questa applicazione analizza thread di email tecniche e commerciali e genera un report strutturato con cronologia e riepilogo finale.", unsafe_allow_html=False)
     st.text_area(
-        "✍️ Inserisci l'email o testo da analizzare",
+        "✍️ Email o testo da analizzare",
         value=st.session_state["input_text"],
         height=180,
-        key="input_text"
+        key="input_text",
+        placeholder="Inserisci qui il contenuto del thread email..."
     )
     uploaded_files = st.file_uploader(
         "📎 Allega file (PDF, DOCX, XLSX, EML, TXT)",
@@ -130,7 +132,6 @@ with col1:
                     # Scrive subito sullo sheet
                     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     sheet.append_row([now, st.session_state["input_text"], result, "", ""])
-
                 except Exception as e:
                     st.error(f"Errore durante l'elaborazione o il salvataggio: {e}")
         else:
@@ -141,15 +142,14 @@ with col1:
 with col2:
     st.markdown("## 💡 Risultato")
     if st.session_state["result"]:
-        # Renderizza il risultato con Markdown per ottenere il grassetto
-        st.markdown(st.session_state["result"], unsafe_allow_html=False)
-        # Pulsante per scaricare il risultato come file di testo
-        st.download_button(
-            label="📥 Scarica file di analisi",
-            data=st.session_state["result"],
-            file_name="analisi_ai.txt",
-            mime="text/plain"
-        )
+        with st.expander("Visualizza risultato", expanded=True):
+            st.markdown(st.session_state["result"], unsafe_allow_html=False)
+            st.download_button(
+                label="📥 Scarica file di analisi",
+                data=st.session_state["result"],
+                file_name="analisi_ai.txt",
+                mime="text/plain"
+            )
 
 # --- Feedback ---
 if st.session_state["result"]:
