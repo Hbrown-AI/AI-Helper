@@ -115,12 +115,11 @@ with col1:
                     st.session_state["result"] = result
                     st.session_state["input_text"] = email_text
 
-                    # → SCRIVO SUBITO NELLO SHEET
+                    # → SCRIVO SUBITO NELLO SHEET (senza messaggi visibili)
                     try:
                         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         # Aggiunge riga con: Timestamp, Email, Risultato, Rating vuoto, Commento vuoto
                         sheet.append_row([now, email_text, result, "", ""])
-                        st.success("✅ Output registrato automaticamente sullo Sheet")
                     except Exception as e:
                         st.error(f"Errore durante il salvataggio sullo Sheet: {e}")
 
@@ -132,7 +131,6 @@ with col1:
     if st.button("🔄 Nuova Analisi"):
         st.session_state["input_text"] = ""
         st.session_state["result"] = ""
-        st.experimental_rerun()
 
 with col2:
     st.markdown("## 💡 Risultato")
@@ -151,16 +149,11 @@ if st.session_state["result"]:
 
     if st.button("📩 Invia feedback"):
         try:
-            # Recupera tutte le righe per determinare l’indice dell’ultima
             all_values = sheet.get_all_values()
             last_row = len(all_values)
             # Aggiorna le colonne Rating (4) e Commento (5) dell’ultima riga
             sheet.update_cell(last_row, 4, rating)
             sheet.update_cell(last_row, 5, comment)
             st.success("✅ Grazie per il tuo feedback!")
-            # Reset dell'interfaccia
-            st.session_state["input_text"] = ""
-            st.session_state["result"] = ""
-            st.experimental_rerun()
         except Exception as e:
             st.error(f"Errore durante il salvataggio del feedback: {e}")
