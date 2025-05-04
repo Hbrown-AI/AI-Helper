@@ -115,7 +115,11 @@ with col1:
         if full_input:
             with st.spinner("🧠 Analisi in corso..."):
                 try:
-                    # Prepara i messaggi: template in system, email in user
+                    # Debug: mostra il template e l'input utente
+                    st.code(prompt_template, language="text")
+                    st.code(full_input, language="text")
+
+                    # Chiamata all'API con template come system
                     response = openai.chat.completions.create(
                         model=MODEL_NAME,
                         messages=[
