@@ -115,12 +115,11 @@ with col1:
         if full_input:
             with st.spinner("🧠 Analisi in corso..."):
                 try:
-                    # Prepara i messaggi: template in system, email in user
                     response = openai.chat.completions.create(
                         model=MODEL_NAME,
                         messages=[
                             {"role": "system", "content": prompt_template},
-                            {"role": "user", "content": f"Email da analizzare:\n{full_input}"}
+                            {"role": "user",   "content": f"Email da analizzare:\n{full_input}"}
                         ],
                         temperature=TEMPERATURE,
                         max_tokens=MAX_TOKENS
@@ -142,7 +141,8 @@ with col1:
 with col2:
     st.markdown("## 💡 Risultato")
     if st.session_state["result"]:
-        st.text_area("Risposta AI", st.session_state["result"], height=400)
+        # Renderizza il risultato con Markdown per avere il grassetto
+        st.markdown(st.session_state["result"], unsafe_allow_html=False)
 
 # --- Feedback ---
 if st.session_state["result"]:
