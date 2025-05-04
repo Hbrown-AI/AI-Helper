@@ -16,7 +16,7 @@ from google.oauth2.service_account import Credentials
 # --- Configurazione OpenAI ---
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 MODEL_NAME = "gpt-4o"
-TEMPERATURE = 0.5
+TEMPERATURE = 0.1
 MAX_TOKENS = 4500
 
 # --- Configurazione Google Sheets ---
