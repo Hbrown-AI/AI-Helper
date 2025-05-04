@@ -27,12 +27,12 @@ Il tono deve essere tecnico, diretto e professionale, come se stessi preparando 
 🧭 2. Riepilogo finale
 Strutturato in 4 sezioni:
 
-📌 Punti principali emersi (in bullet points chiari e completi e titolo in grassetto)
+📌 Punti principali emersi (in bullet points chiari e completi e titolo in grassetto e maiuscolo)
 
-✅ Azioni da intraprendere – specifica sempre chi deve fare cosa, con eventuali scadenze e titolo in grassetto
+✅ Azioni da intraprendere – specifica sempre chi deve fare cosa, con eventuali scadenze e titolo in grassetto e maiuscolo
 
-🚩 Criticità o decisioni sospese e titolo in grassetto
+🚩 Criticità o decisioni sospese e titolo in grassetto e maiuscolo
 
-📆 Prossimi step operativi suggeriti – con eventuale calendario o tempistica e titolo in grassetto
+📆 Prossimi step operativi suggeriti – con eventuale calendario o tempistica e titolo in grassetto e maiuscolo
 
-❗ Ordina le azioni nel riepilogo secondo livello di urgenza, dalle più critiche in alto e titolo in grassetto.
+❗ Ordina le azioni nel riepilogo secondo livello di urgenza, dalle più critiche in alto e titolo in grassetto e maiuscolo.
